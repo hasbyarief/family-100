@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family 100 - Kuis SD Berjenjang</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at center, #1e1b4b 0%, #0f172a 100%);
+            color: white;
+            overflow: hidden; /* Prevent scrolling for projector view */
+            user-select: none;
+        }
+
+        /* 3D Card Flip Styles */
+        .perspective {
+            perspective: 1000px;
+        }
+        .preserve-3d {
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+        }
+        .backface-hidden {
+            backface-visibility: hidden;
+        }
+        .rotate-x-180 {
+            transform: rotateX(180deg);
+        }
+        
+        /* Board specific styling */
+        .board-container {
+            box-shadow: 0 0 50px rgba(59, 130, 246, 0.3) inset;
+            border: 4px solid #3b82f6;
+            background-color: rgba(15, 23, 42, 0.8);
+        }
+
+        /* Animations */
+        @keyframes popIn {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            70% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+        
+        .animate-pop-in {
+            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-50px) scale(1.5); opacity: 0; }
+        }
+
+        .point-float {
+            position: absolute;
+            color: #4ade80; /* green-400 */
+            font-weight: 900;
+            font-size: 2rem;
+            text-shadow: 0 0 10px rgba(74, 222, 128, 0.8);
+            pointer-events: none;
+            animation: floatUp 1s ease-out forwards;
+            z-index: 50;
+        }
+
+        /* Team Active Glow */
+        .team-active {
+            box-shadow: 0 0 30px rgba(250, 204, 21, 0.6); /* Yellow glow */
+            border-color: #facc15 !important;
+            transform: scale(1.02);
+            transition: all 0.3s ease;
+        }
+        .team-inactive {
+            opacity: 0.7;
+            filter: grayscale(40%);
+            transition: all 0.3s ease;
+        }
+
+        /* Strike Indicator */
+        .strike-x {
+            opacity: 0.25;
+            filter: grayscale(100%);
+            transition: all 0.3s ease;
+        }
+        .strike-x.active {
+            opacity: 1;
+            filter: grayscale(0%) drop-shadow(0 0 10px rgba(239, 68, 68, 0.8));
+        }
+
+        /* Big X Overlay */
+        #big-x-overlay {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+        }
+
+        /* Confetti Canvas */
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Custom Scrollbar for input area if needed */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col font-sans">
+
+    <!-- BGM Audio Element -->
+    <audio id="bgm-audio" loop>
+        <source src="bgm.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Toggle BGM Button (Kiri Atas) -->
+    <button onclick="toggleBGM()" id="btn-bgm" title="Toggle Musik" class="absolute top-4 left-4 bg-teal-700/90 hover:bg-teal-600 text-white font-bold px-4 py-3 rounded-xl border border-gray-600 hover:border-teal-400 shadow-lg z-[100] transition-all">
+        🎵 Musik: OFF
+    </button>
+
+    <!-- Toggle Fullscreen Button (z-[100] agar tampil di atas menu modal) -->
+    <button onclick="toggleFullscreen()" id="fullscreen-btn" title="Toggle Fullscreen" class="absolute top-4 right-4 bg-gray-800/80 hover:bg-blue-600 text-white p-3 rounded-xl border border-gray-600 hover:border-blue-400 shadow-lg z-[100] transition-all flex items-center justify-center group">
+        <svg xmlns="http://www.w3.org/2000/svg" id="fs-icon-expand" class="h-6 w-6 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" id="fs-icon-compress" class="h-6 w-6 hidden group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 14h6m0 0v6m0-6l-7 7m17-11h-6m0 0V4m0 6l7-7M4 10h6m0 0V4m0 6l-7-7m17 11h-6m0 0v6m0-6l7 7" />
+        </svg>
+    </button>
+
+    <!-- Confetti Layer (Hidden initially) -->
+    <canvas id="confetti-canvas"></canvas>
+
+    <!-- BIG X Overlay -->
+    <div id="big-x-overlay" class="text-red-600 font-black text-[20vw] drop-shadow-[0_0_50px_rgba(220,38,38,1)] leading-none">
+        ❌
+    </div>
+
+    <!-- TURN POPUP OVERLAY -->
+    <div id="turn-popup" class="fixed inset-0 flex items-center justify-center pointer-events-none z-[80] hidden">
+        <div id="turn-popup-content" class="text-7xl font-black text-white px-12 py-8 rounded-3xl border-8 shadow-[0_0_50px_rgba(0,0,0,0.8)] transform scale-0 transition-transform duration-300 backdrop-blur-md text-center">
+            GILIRAN TIM 1
+        </div>
+    </div>
+
+    <!-- SUBJECT SELECTION MODAL -->
+    <div id="grade-modal" class="fixed inset-0 bg-black/95 z-[60] flex flex-col items-center justify-center backdrop-blur-md">
+        <h1 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500 drop-shadow-lg tracking-wider uppercase mb-4 text-center" style="-webkit-text-stroke: 1px #854d0e;">
+            FAMILY 100 SD
+        </h1>
+        <p class="text-2xl text-blue-300 font-bold mb-10 tracking-widest bg-blue-900/50 inline-block px-8 py-2 rounded-full border border-blue-500/30 text-center">PILIH MATA PELAJARAN</p>
+        <div class="flex flex-wrap justify-center gap-6 max-w-5xl w-full px-4">
+            <button onclick="selectSubject('ipas')" class="w-[30%] min-w-[250px] bg-gradient-to-b from-green-500 to-green-700 hover:from-green-400 hover:to-green-600 text-white font-black text-4xl py-10 rounded-3xl shadow-[0_10px_0_#14532d] hover:shadow-[0_5px_0_#14532d] hover:translate-y-[5px] transition-all border-4 border-green-300">IPAS</button>
+            <button onclick="selectSubject('indonesia')" class="w-[30%] min-w-[250px] bg-gradient-to-b from-red-500 to-red-700 hover:from-red-400 hover:to-red-600 text-white font-black text-4xl py-10 rounded-3xl shadow-[0_10px_0_#7f1d1d] hover:shadow-[0_5px_0_#7f1d1d] hover:translate-y-[5px] transition-all border-4 border-red-300">B. INDO</button>
+            <button onclick="selectSubject('matematika')" class="w-[30%] min-w-[250px] bg-gradient-to-b from-blue-500 to-blue-700 hover:from-blue-400 hover:to-blue-600 text-white font-black text-4xl py-10 rounded-3xl shadow-[0_10px_0_#1e3a8a] hover:shadow-[0_5px_0_#1e3a8a] hover:translate-y-[5px] transition-all border-4 border-blue-300">MTK</button>
+            <button onclick="selectSubject('pkn')" class="w-[30%] min-w-[250px] bg-gradient-to-b from-orange-500 to-orange-700 hover:from-orange-400 hover:to-orange-600 text-white font-black text-4xl py-10 rounded-3xl shadow-[0_10px_0_#7c2d12] hover:shadow-[0_5px_0_#7c2d12] hover:translate-y-[5px] transition-all border-4 border-orange-300">PKN</button>
+            <button onclick="selectSubject('inggris')" class="w-[30%] min-w-[250px] bg-gradient-to-b from-purple-500 to-purple-700 hover:from-purple-400 hover:to-purple-600 text-white font-black text-4xl py-10 rounded-3xl shadow-[0_10px_0_#4c1d95] hover:shadow-[0_5px_0_#4c1d95] hover:translate-y-[5px] transition-all border-4 border-purple-300">B. INGGRIS</button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME AREA -->
+    <div class="flex-1 flex flex-col p-4 pb-0 h-[calc(100vh-160px)] hidden" id="main-game-area">
+        
+        <!-- Header -->
+        <header class="text-center mb-4">
+            <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-yellow-200 to-yellow-500 drop-shadow-lg tracking-wider uppercase" style="-webkit-text-stroke: 1px #854d0e;">
+                FAMILY 100
+            </h1>
+            <h2 id="grade-subtitle" class="text-2xl font-bold text-blue-300 mt-1 tracking-widest bg-blue-900/50 inline-block px-6 py-1 rounded-full border border-blue-500/30">
+                MEMUAT MAPEL...
+            </h2>
+            <div id="question-indicator" class="mt-2 text-gray-400 font-semibold bg-gray-800/80 inline-block px-4 py-1 rounded-lg">
+                Memuat...
+            </div>
+        </header>
+
+        <!-- Play Area (Teams & Board) -->
+        <div class="flex-1 flex flex-row gap-6 items-stretch justify-between relative">
+            
+            <!-- TEAM 1 PANEL -->
+            <div id="team1-panel" class="w-1/4 bg-gray-800 border-4 border-gray-600 rounded-2xl flex flex-col items-center justify-center p-4 relative team-active">
+                <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 rounded-xl pointer-events-none"></div>
+                <h3 class="text-3xl font-black text-blue-400 mb-2 z-10 drop-shadow-md uppercase tracking-wider">TIM 1</h3>
+                <div id="team1-score" class="text-7xl font-black text-white z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">0</div>
+                <div class="text-gray-400 font-semibold mb-6 z-10">POIN</div>
+                
+                <!-- Strikes -->
+                <div class="flex gap-2 z-10 bg-black/40 p-3 rounded-xl border border-white/10">
+                    <span id="t1-strike-1" class="strike-x text-5xl font-black">❌</span>
+                    <span id="t1-strike-2" class="strike-x text-5xl font-black">❌</span>
+                    <span id="t1-strike-3" class="strike-x text-5xl font-black">❌</span>
+                </div>
+                <div id="t1-point-anchor" class="absolute top-1/4 left-1/2"></div>
+            </div>
+
+            <!-- CENTER BOARD -->
+            <div class="w-1/2 flex flex-col">
+                <!-- Question Text -->
+                <div class="bg-blue-950/80 border-2 border-blue-400/50 rounded-xl p-4 mb-4 text-center shadow-lg h-28 flex items-center justify-center">
+                    <p id="question-text" class="text-2xl md:text-3xl font-bold leading-tight drop-shadow-md text-blue-50">
+                        Memuat Pertanyaan...
+                    </p>
+                </div>
+
+                <!-- Answers List -->
+                <div id="answers-container" class="board-container rounded-2xl p-4 flex-1 flex flex-col gap-3 justify-center relative">
+                    <!-- Cards will be generated here by JS -->
+                </div>
+            </div>
+
+            <!-- TEAM 2 PANEL -->
+            <div id="team2-panel" class="w-1/4 bg-gray-800 border-4 border-gray-600 rounded-2xl flex flex-col items-center justify-center p-4 relative team-inactive">
+                <div class="absolute inset-0 bg-gradient-to-b from-transparent to-black/50 rounded-xl pointer-events-none"></div>
+                <h3 class="text-3xl font-black text-rose-400 mb-2 z-10 drop-shadow-md uppercase tracking-wider">TIM 2</h3>
+                <div id="team2-score" class="text-7xl font-black text-white z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">0</div>
+                <div class="text-gray-400 font-semibold mb-6 z-10">POIN</div>
+                
+                <!-- Strikes -->
+                <div class="flex gap-2 z-10 bg-black/40 p-3 rounded-xl border border-white/10">
+                    <span id="t2-strike-1" class="strike-x text-5xl font-black">❌</span>
+                    <span id="t2-strike-2" class="strike-x text-5xl font-black">❌</span>
+                    <span id="t2-strike-3" class="strike-x text-5xl font-black">❌</span>
+                </div>
+                <div id="t2-point-anchor" class="absolute top-1/4 left-1/2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TEACHER CONTROL PANEL -->
+    <div class="h-[160px] bg-gray-900 border-t-4 border-blue-600 p-3 flex flex-col justify-between z-40 relative shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+        <!-- Top Row: Input & Check -->
+        <div class="flex gap-3 justify-center items-center max-w-5xl mx-auto w-full">
+            <input type="text" id="answer-input" placeholder="Ketik jawaban peserta di sini..." 
+                class="flex-1 bg-gray-800 text-white text-xl px-5 py-3 rounded-xl border-2 border-gray-600 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 shadow-inner">
+            <button onclick="checkAnswer()" class="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-xl px-8 py-3 rounded-xl shadow-lg border-b-4 border-blue-800 transition-all hover:-translate-y-1">
+                CEK JAWABAN (Enter)
+            </button>
+            <button onclick="markWrong()" class="bg-red-600 hover:bg-red-500 active:bg-red-700 text-white font-black text-2xl px-6 py-3 rounded-xl shadow-lg border-b-4 border-red-800 transition-all hover:-translate-y-1">
+                ❌ SALAH
+            </button>
+        </div>
+
+        <!-- Bottom Row: Manual Controls & Game Flow -->
+        <div class="flex justify-between items-center max-w-6xl mx-auto w-full mt-3 bg-gray-800/50 p-2 rounded-lg border border-gray-700">
+            <!-- Manual Reveals -->
+            <div class="flex gap-2 items-center">
+                <span class="text-sm font-semibold text-gray-400 uppercase tracking-wider mr-2">Buka Manual (Poin):</span>
+                <button onclick="manualReveal(0)" class="bg-green-600/80 hover:bg-green-500 text-white w-10 h-10 rounded shadow font-bold">1</button>
+                <button onclick="manualReveal(1)" class="bg-green-600/80 hover:bg-green-500 text-white w-10 h-10 rounded shadow font-bold">2</button>
+                <button onclick="manualReveal(2)" class="bg-green-600/80 hover:bg-green-500 text-white w-10 h-10 rounded shadow font-bold">3</button>
+                <button onclick="manualReveal(3)" class="bg-green-600/80 hover:bg-green-500 text-white w-10 h-10 rounded shadow font-bold">4</button>
+                <button onclick="manualReveal(4)" class="bg-green-600/80 hover:bg-green-500 text-white w-10 h-10 rounded shadow font-bold">5</button>
+            </div>
+
+            <!-- Middle Controls -->
+            <div class="flex gap-3">
+                <button onclick="switchTeam()" class="bg-yellow-500 hover:bg-yellow-400 text-yellow-900 font-bold px-4 py-2 rounded shadow border-b-2 border-yellow-700">
+                    🔄 Ganti Tim
+                </button>
+                <button onclick="resetStrikes()" class="bg-gray-600 hover:bg-gray-500 text-white font-bold px-4 py-2 rounded shadow border-b-2 border-gray-800">
+                    Reset ❌
+                </button>
+                <button onclick="revealAllNoPoints()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded shadow border-b-2 border-indigo-800">
+                    Buka Semua
+                </button>
+            </div>
+
+            <!-- Game Flow Controls -->
+            <div class="flex gap-3">
+                <button onclick="showGradeSelection()" class="bg-blue-800 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-sm border-b-2 border-blue-900 shadow">
+                    ☰ Ganti Mapel
+                </button>
+                <button onclick="nextQuestion()" id="btn-next" class="bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg border-b-4 border-purple-800 animate-pulse">
+                    SOAL BERIKUTNYA ⏭
+                </button>
+                <button onclick="resetGameModal()" class="bg-gray-700 hover:bg-gray-600 text-gray-300 font-bold px-3 py-2 rounded-xl text-sm border-b-2 border-gray-900">
+                    Reset Game
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WIN/END GAME MODAL -->
+    <div id="win-modal" class="fixed inset-0 bg-black/90 hidden z-50 flex items-center justify-center backdrop-blur-sm">
+        <div class="bg-gradient-to-b from-gray-800 to-gray-900 border-4 border-yellow-500 rounded-3xl p-10 flex flex-col items-center shadow-[0_0_100px_rgba(234,179,8,0.5)] transform scale-0 transition-transform duration-500" id="win-modal-content">
+            <h2 class="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-yellow-600 mb-2 uppercase text-center drop-shadow-lg">
+                PERMAINAN SELESAI
+            </h2>
+            <p class="text-xl text-gray-300 mb-8 font-semibold tracking-widest">HASIL AKHIR</p>
+            
+            <div class="flex gap-12 mb-10 w-full justify-center">
+                <div class="text-center bg-gray-800/80 p-6 rounded-2xl border border-gray-600 min-w-[200px]">
+                    <h3 class="text-2xl text-blue-400 font-bold mb-2">TIM 1</h3>
+                    <div id="final-score-1" class="text-6xl font-black text-white drop-shadow-md">0</div>
+                </div>
+                <div class="text-4xl font-black text-gray-500 flex items-center">VS</div>
+                <div class="text-center bg-gray-800/80 p-6 rounded-2xl border border-gray-600 min-w-[200px]">
+                    <h3 class="text-2xl text-rose-400 font-bold mb-2">TIM 2</h3>
+                    <div id="final-score-2" class="text-6xl font-black text-white drop-shadow-md">0</div>
+                </div>
+            </div>
+
+            <div id="winner-announcement" class="text-5xl font-black text-white mb-10 animate-bounce text-center drop-shadow-[0_0_20px_rgba(255,255,255,0.8)]">
+                TIM 1 MENANG!
+            </div>
+
+            <button onclick="resetGame()" class="bg-yellow-500 hover:bg-yellow-400 text-yellow-900 font-black text-2xl px-10 py-4 rounded-xl shadow-[0_5px_0_#a16207] hover:shadow-[0_2px_0_#a16207] hover:translate-y-[3px] transition-all">
+                MAIN LAGI
+            </button>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        /* --- QUESTION BANK (MAPEL SD KELAS 1-6) - 10 SOAL PER MAPEL --- */
+        const questionsBank = {
+            'ipas': [
+                {
+                    question: "Sebutkan planet dalam tata surya kita!",
+                    answers: [
+                        { text: "Bumi", points: 100, keywords: ["bumi", "earth"] },
+                        { text: "Mars", points: 80, keywords: ["mars"] },
+                        { text: "Venus", points: 60, keywords: ["venus"] },
+                        { text: "Jupiter", points: 40, keywords: ["jupiter", "yupiter"] },
+                        { text: "Saturnus", points: 20, keywords: ["saturnus", "neptunus", "uranus", "merkurius"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan hewan pemakan tumbuhan (Herbivora)!",
+                    answers: [
+                        { text: "Sapi", points: 100, keywords: ["sapi"] },
+                        { text: "Kambing / Domba", points: 80, keywords: ["kambing", "domba"] },
+                        { text: "Kuda", points: 60, keywords: ["kuda"] },
+                        { text: "Kelinci", points: 40, keywords: ["kelinci"] },
+                        { text: "Gajah", points: 20, keywords: ["gajah", "jerapah"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan bencana alam yang sering terjadi di Indonesia!",
+                    answers: [
+                        { text: "Banjir", points: 100, keywords: ["banjir"] },
+                        { text: "Gempa Bumi", points: 80, keywords: ["gempa"] },
+                        { text: "Gunung Meletus", points: 60, keywords: ["gunung meletus", "erupsi", "vulkanik"] },
+                        { text: "Tanah Longsor", points: 40, keywords: ["longsor"] },
+                        { text: "Tsunami", points: 20, keywords: ["tsunami"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan sumber energi panas!",
+                    answers: [
+                        { text: "Matahari", points: 100, keywords: ["matahari", "surya"] },
+                        { text: "Api", points: 80, keywords: ["api", "korek"] },
+                        { text: "Listrik / Setrika", points: 60, keywords: ["listrik", "setrika", "magic com"] },
+                        { text: "Gesekan Benda", points: 40, keywords: ["gesek", "gesekan"] },
+                        { text: "Panas Bumi / Magma", points: 20, keywords: ["bumi", "magma", "gunung berapi"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan bagian-bagian utama dari tumbuhan!",
+                    answers: [
+                        { text: "Daun", points: 100, keywords: ["daun"] },
+                        { text: "Akar", points: 80, keywords: ["akar"] },
+                        { text: "Batang", points: 60, keywords: ["batang", "ranting", "dahan"] },
+                        { text: "Bunga", points: 40, keywords: ["bunga", "kembang"] },
+                        { text: "Buah / Biji", points: 20, keywords: ["buah", "biji"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan alat pernapasan pada hewan dan manusia!",
+                    answers: [
+                        { text: "Paru-paru", points: 100, keywords: ["paru", "paru-paru"] },
+                        { text: "Insang", points: 80, keywords: ["insang"] },
+                        { text: "Trakea", points: 60, keywords: ["trakea"] },
+                        { text: "Kulit", points: 40, keywords: ["kulit"] },
+                        { text: "Pundi-pundi udara", points: 20, keywords: ["pundi", "udara"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan benda yang berbentuk cair!",
+                    answers: [
+                        { text: "Air", points: 100, keywords: ["air"] },
+                        { text: "Minyak", points: 80, keywords: ["minyak"] },
+                        { text: "Susu", points: 60, keywords: ["susu"] },
+                        { text: "Sirup", points: 40, keywords: ["sirup"] },
+                        { text: "Kecap / Bensin", points: 20, keywords: ["kecap", "bensin", "solar"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan pahlawan nasional kemerdekaan Indonesia!",
+                    answers: [
+                        { text: "Soekarno", points: 100, keywords: ["soekarno", "sukarno", "bung karno"] },
+                        { text: "R.A. Kartini", points: 80, keywords: ["kartini"] },
+                        { text: "Pangeran Diponegoro", points: 60, keywords: ["diponegoro"] },
+                        { text: "Jenderal Sudirman", points: 40, keywords: ["sudirman", "soedirman"] },
+                        { text: "Mohammad Hatta", points: 20, keywords: ["hatta", "bung hatta", "moh hatta"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan nama candi terkenal di Indonesia!",
+                    answers: [
+                        { text: "Borobudur", points: 100, keywords: ["borobudur"] },
+                        { text: "Prambanan", points: 80, keywords: ["prambanan"] },
+                        { text: "Mendut", points: 60, keywords: ["mendut"] },
+                        { text: "Muara Takus", points: 40, keywords: ["muara takus"] },
+                        { text: "Singasari", points: 20, keywords: ["singasari", "penataran", "kalasan"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan panca indera pada manusia!",
+                    answers: [
+                        { text: "Mata (Penglihatan)", points: 100, keywords: ["mata", "lihat"] },
+                        { text: "Telinga (Pendengaran)", points: 80, keywords: ["telinga", "dengar", "kuping"] },
+                        { text: "Hidung (Penciuman)", points: 60, keywords: ["hidung", "cium", "bau"] },
+                        { text: "Lidah (Pengecap)", points: 40, keywords: ["lidah", "rasa", "kecap"] },
+                        { text: "Kulit (Peraba)", points: 20, keywords: ["kulit", "raba", "sentuh"] }
+                    ]
+                }
+            ],
+            'indonesia': [
+                {
+                    question: "Sebutkan tokoh dalam dongeng atau cerita rakyat Indonesia!",
+                    answers: [
+                        { text: "Malin Kundang", points: 100, keywords: ["malin kundang", "malin"] },
+                        { text: "Bawang Merah / Putih", points: 80, keywords: ["bawang", "bawang merah", "bawang putih"] },
+                        { text: "Timun Mas", points: 60, keywords: ["timun mas"] },
+                        { text: "Sangkuriang", points: 40, keywords: ["sangkuriang"] },
+                        { text: "Si Kancil", points: 20, keywords: ["kancil"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan unsur intrinsik dalam sebuah cerita!",
+                    answers: [
+                        { text: "Tokoh / Penokohan", points: 100, keywords: ["tokoh", "penokohan", "karakter"] },
+                        { text: "Latar / Setting", points: 80, keywords: ["latar", "setting", "tempat", "waktu"] },
+                        { text: "Alur / Plot", points: 60, keywords: ["alur", "plot"] },
+                        { text: "Tema", points: 40, keywords: ["tema"] },
+                        { text: "Amanat / Pesan Moral", points: 20, keywords: ["amanat", "pesan", "moral"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan jenis-jenis paragraf atau teks bacaan!",
+                    answers: [
+                        { text: "Narasi (Cerita)", points: 100, keywords: ["narasi"] },
+                        { text: "Deskripsi (Penggambaran)", points: 80, keywords: ["deskripsi"] },
+                        { text: "Eksposisi (Penjelasan)", points: 60, keywords: ["eksposisi"] },
+                        { text: "Persuasi (Ajakan)", points: 40, keywords: ["persuasi"] },
+                        { text: "Argumentasi (Pendapat)", points: 20, keywords: ["argumentasi"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan tanda baca yang sering digunakan dalam kalimat!",
+                    answers: [
+                        { text: "Titik (.)", points: 100, keywords: ["titik"] },
+                        { text: "Koma (,)", points: 80, keywords: ["koma"] },
+                        { text: "Tanda Tanya (?)", points: 60, keywords: ["tanya"] },
+                        { text: "Tanda Seru (!)", points: 40, keywords: ["seru"] },
+                        { text: "Tanda Petik / Kutip", points: 20, keywords: ["petik", "kutip"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan kata ganti orang (Pronomina)!",
+                    answers: [
+                        { text: "Saya / Aku", points: 100, keywords: ["saya", "aku", "ku"] },
+                        { text: "Kamu / Engkau", points: 80, keywords: ["kamu", "engkau", "kau", "anda"] },
+                        { text: "Dia / Ia", points: 60, keywords: ["dia", "ia", "beliau"] },
+                        { text: "Kami / Kita", points: 40, keywords: ["kami", "kita"] },
+                        { text: "Mereka", points: 20, keywords: ["mereka"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan jenis-jenis puisi lama!",
+                    answers: [
+                        { text: "Pantun", points: 100, keywords: ["pantun"] },
+                        { text: "Syair", points: 80, keywords: ["syair"] },
+                        { text: "Gurindam", points: 60, keywords: ["gurindam"] },
+                        { text: "Karmina", points: 40, keywords: ["karmina"] },
+                        { text: "Seloka / Talibun", points: 20, keywords: ["seloka", "talibun"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan kata tanya (Adiksimba / 5W1H)!",
+                    answers: [
+                        { text: "Apa", points: 100, keywords: ["apa"] },
+                        { text: "Siapa", points: 80, keywords: ["siapa"] },
+                        { text: "Kapan", points: 60, keywords: ["kapan"] },
+                        { text: "Di mana", points: 40, keywords: ["dimana", "di mana"] },
+                        { text: "Mengapa / Bagaimana", points: 20, keywords: ["mengapa", "kenapa", "bagaimana"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan persamaan kata (sinonim) dari kata PINTAR!",
+                    answers: [
+                        { text: "Pandai", points: 100, keywords: ["pandai"] },
+                        { text: "Cerdas", points: 80, keywords: ["cerdas"] },
+                        { text: "Mahir", points: 60, keywords: ["mahir"] },
+                        { text: "Cakap", points: 40, keywords: ["cakap"] },
+                        { text: "Cerdik", points: 20, keywords: ["cerdik", "piawai"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan ciri-ciri dari sebuah Pantun!",
+                    answers: [
+                        { text: "Bersajak a-b-a-b", points: 100, keywords: ["sajak", "abab", "a-b-a-b"] },
+                        { text: "Terdiri dari 4 baris", points: 80, keywords: ["4 baris", "empat baris", "baris"] },
+                        { text: "Ada Sampiran", points: 60, keywords: ["sampiran", "baris 1 dan 2"] },
+                        { text: "Ada Isi", points: 40, keywords: ["isi", "makna", "baris 3 dan 4"] },
+                        { text: "Terdiri 8-12 suku kata", points: 20, keywords: ["suku kata", "8-12"] }
+                    ]
+                },
+                {
+                    question: "Kata sapaan hormat apa yang biasa ditulis dalam surat?",
+                    answers: [
+                        { text: "Bapak", points: 100, keywords: ["bapak", "bpk"] },
+                        { text: "Ibu", points: 80, keywords: ["ibu"] },
+                        { text: "Saudara / Saudari", points: 60, keywords: ["saudara", "saudari", "sdr"] },
+                        { text: "Yang Terhormat (Yth)", points: 40, keywords: ["yang terhormat", "yth"] },
+                        { text: "Tuan / Nyonya", points: 20, keywords: ["tuan", "nyonya"] }
+                    ]
+                }
+            ],
+            'matematika': [
+                {
+                    question: "Sebutkan nama-nama bangun datar!",
+                    answers: [
+                        { text: "Persegi / Kotak", points: 100, keywords: ["persegi", "kotak", "bujur sangkar"] },
+                        { text: "Segitiga", points: 80, keywords: ["segitiga"] },
+                        { text: "Lingkaran", points: 60, keywords: ["lingkaran", "bulat"] },
+                        { text: "Persegi Panjang", points: 40, keywords: ["persegi panjang"] },
+                        { text: "Trapesium / Jajargenjang", points: 20, keywords: ["trapesium", "jajargenjang", "belah ketupat", "layang-layang"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan nama-nama bangun ruang!",
+                    answers: [
+                        { text: "Kubus", points: 100, keywords: ["kubus"] },
+                        { text: "Balok", points: 80, keywords: ["balok"] },
+                        { text: "Tabung / Silinder", points: 60, keywords: ["tabung", "silinder"] },
+                        { text: "Bola", points: 40, keywords: ["bola"] },
+                        { text: "Kerucut / Prisma", points: 20, keywords: ["kerucut", "prisma", "limas"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan macam-macam operasi hitung dasar matematika!",
+                    answers: [
+                        { text: "Penjumlahan / Tambah", points: 100, keywords: ["penjumlahan", "tambah"] },
+                        { text: "Pengurangan / Kurang", points: 80, keywords: ["pengurangan", "kurang"] },
+                        { text: "Perkalian / Kali", points: 60, keywords: ["perkalian", "kali"] },
+                        { text: "Pembagian / Bagi", points: 40, keywords: ["pembagian", "bagi"] },
+                        { text: "Hitung Campuran", points: 20, keywords: ["campuran"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan satuan ukuran panjang!",
+                    answers: [
+                        { text: "Meter (m)", points: 100, keywords: ["meter", "m"] },
+                        { text: "Centimeter (cm)", points: 80, keywords: ["centimeter", "sentimeter", "cm"] },
+                        { text: "Kilometer (km)", points: 60, keywords: ["kilometer", "km"] },
+                        { text: "Milimeter (mm)", points: 40, keywords: ["milimeter", "mm"] },
+                        { text: "Desimeter (dm)", points: 20, keywords: ["desimeter", "dm", "hm", "dam"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan satuan ukuran waktu!",
+                    answers: [
+                        { text: "Jam", points: 100, keywords: ["jam"] },
+                        { text: "Menit", points: 80, keywords: ["menit"] },
+                        { text: "Detik", points: 60, keywords: ["detik"] },
+                        { text: "Hari", points: 40, keywords: ["hari"] },
+                        { text: "Bulan / Tahun", points: 20, keywords: ["bulan", "tahun", "minggu", "windu", "abad"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan alat ukur yang sering digunakan!",
+                    answers: [
+                        { text: "Penggaris / Mistar", points: 100, keywords: ["penggaris", "mistar"] },
+                        { text: "Meteran", points: 80, keywords: ["meteran", "pita ukur"] },
+                        { text: "Timbangan / Neraca", points: 60, keywords: ["timbangan", "neraca"] },
+                        { text: "Jam / Stopwatch", points: 40, keywords: ["jam", "stopwatch", "arloji"] },
+                        { text: "Busur Derajat", points: 20, keywords: ["busur"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan jenis-jenis bilangan bulat!",
+                    answers: [
+                        { text: "Bilangan Genap", points: 100, keywords: ["genap"] },
+                        { text: "Bilangan Ganjil", points: 80, keywords: ["ganjil"] },
+                        { text: "Bilangan Prima", points: 60, keywords: ["prima"] },
+                        { text: "Bilangan Cacah / Nol", points: 40, keywords: ["cacah", "nol"] },
+                        { text: "Bilangan Negatif/Positif", points: 20, keywords: ["negatif", "positif"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan satuan ukuran berat (Massa)!",
+                    answers: [
+                        { text: "Kilogram (kg)", points: 100, keywords: ["kilogram", "kg"] },
+                        { text: "Gram (g)", points: 80, keywords: ["gram", "gr"] },
+                        { text: "Ton", points: 60, keywords: ["ton"] },
+                        { text: "Kuintal", points: 40, keywords: ["kuintal"] },
+                        { text: "Ons / Pon", points: 20, keywords: ["ons", "pon", "mg"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan jenis atau bentuk bilangan pecahan!",
+                    answers: [
+                        { text: "Setengah (1/2)", points: 100, keywords: ["setengah", "1/2", "satu per dua"] },
+                        { text: "Seperempat (1/4)", points: 80, keywords: ["seperempat", "1/4", "satu per empat"] },
+                        { text: "Sepertiga (1/3)", points: 60, keywords: ["sepertiga", "1/3", "satu per tiga"] },
+                        { text: "Pecahan Campuran", points: 40, keywords: ["campuran"] },
+                        { text: "Pecahan Desimal / Persen", points: 20, keywords: ["desimal", "koma", "persen", "%"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan macam-macam sudut!",
+                    answers: [
+                        { text: "Siku-siku (90 derajat)", points: 100, keywords: ["siku", "siku-siku", "90"] },
+                        { text: "Lancip (< 90 derajat)", points: 80, keywords: ["lancip"] },
+                        { text: "Tumpul (> 90 derajat)", points: 60, keywords: ["tumpul"] },
+                        { text: "Lurus (180 derajat)", points: 40, keywords: ["lurus"] },
+                        { text: "Sudut Penuh (360 derajat)", points: 20, keywords: ["penuh", "refleks", "360"] }
+                    ]
+                }
+            ],
+            'pkn': [
+                {
+                    question: "Sebutkan simbol atau lambang Pancasila di dada Garuda!",
+                    answers: [
+                        { text: "Bintang", points: 100, keywords: ["bintang"] },
+                        { text: "Rantai", points: 80, keywords: ["rantai"] },
+                        { text: "Pohon Beringin", points: 60, keywords: ["beringin", "pohon beringin"] },
+                        { text: "Kepala Banteng", points: 40, keywords: ["banteng", "kepala banteng"] },
+                        { text: "Padi dan Kapas", points: 20, keywords: ["padi", "kapas"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan agama yang diakui di Indonesia!",
+                    answers: [
+                        { text: "Islam", points: 100, keywords: ["islam"] },
+                        { text: "Kristen", points: 80, keywords: ["kristen", "protestan"] },
+                        { text: "Katolik", points: 60, keywords: ["katolik"] },
+                        { text: "Hindu", points: 40, keywords: ["hindu"] },
+                        { text: "Buddha / Konghucu", points: 20, keywords: ["buddha", "budha", "konghucu"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan nama-nama suku bangsa di Indonesia!",
+                    answers: [
+                        { text: "Suku Jawa", points: 100, keywords: ["jawa"] },
+                        { text: "Suku Sunda", points: 80, keywords: ["sunda"] },
+                        { text: "Suku Batak", points: 60, keywords: ["batak"] },
+                        { text: "Suku Minang", points: 40, keywords: ["minang", "padang"] },
+                        { text: "Suku Dayak / Asmat", points: 20, keywords: ["dayak", "asmat", "bugis", "madura"] }
+                    ]
+                },
+                {
+                    question: "Apa saja HAK seorang anak saat berada di rumah?",
+                    answers: [
+                        { text: "Mendapat Kasih Sayang", points: 100, keywords: ["kasih sayang", "disayangi", "cinta"] },
+                        { text: "Mendapat Makanan / Minuman", points: 80, keywords: ["makan", "minum", "gizi"] },
+                        { text: "Hak Bermain", points: 60, keywords: ["bermain", "main"] },
+                        { text: "Mendapat Perlindungan", points: 40, keywords: ["lindung", "perlindungan", "aman"] },
+                        { text: "Mendapat Pakaian / Tempat Tinggal", points: 20, keywords: ["pakaian", "baju", "rumah", "tempat tinggal"] }
+                    ]
+                },
+                {
+                    question: "Apa saja KEWAJIBAN seorang siswa di sekolah?",
+                    answers: [
+                        { text: "Belajar dengan rajin", points: 100, keywords: ["belajar", "menuntut ilmu"] },
+                        { text: "Menaati Tata Tertib / Aturan", points: 80, keywords: ["taat", "aturan", "tata tertib", "patuh"] },
+                        { text: "Menghormati Guru", points: 60, keywords: ["hormat", "guru", "sopan"] },
+                        { text: "Melaksanakan Piket / Kebersihan", points: 40, keywords: ["piket", "bersih", "kebersihan", "sapu"] },
+                        { text: "Mengerjakan Tugas / PR", points: 20, keywords: ["tugas", "pr", "pekerjaan rumah"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan sikap pengamalan Pancasila sila ke-1 (Ketuhanan)!",
+                    answers: [
+                        { text: "Berdoa", points: 100, keywords: ["doa", "berdoa"] },
+                        { text: "Rajin Beribadah", points: 80, keywords: ["ibadah", "salat", "sholat", "gereja"] },
+                        { text: "Toleransi Antar Agama", points: 60, keywords: ["toleransi", "rukun agama"] },
+                        { text: "Menghargai Teman Beribadah", points: 40, keywords: ["hargai", "hormat"] },
+                        { text: "Bersedekah / Bersyukur", points: 20, keywords: ["sedekah", "syukur", "bersyukur"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan tempat ibadah umat beragama di Indonesia!",
+                    answers: [
+                        { text: "Masjid (Islam)", points: 100, keywords: ["masjid", "mesjid"] },
+                        { text: "Gereja (Kristen/Katolik)", points: 80, keywords: ["gereja"] },
+                        { text: "Pura (Hindu)", points: 60, keywords: ["pura"] },
+                        { text: "Vihara (Buddha)", points: 40, keywords: ["vihara", "wihara"] },
+                        { text: "Klenteng (Konghucu)", points: 20, keywords: ["klenteng", "kelenteng"] }
+                    ]
+                },
+                {
+                    question: "Sikap pahlawan apa yang patut kita tiru dalam kehidupan sehari-hari?",
+                    answers: [
+                        { text: "Pemberani / Berani", points: 100, keywords: ["berani", "pemberani"] },
+                        { text: "Rela Berkorban", points: 80, keywords: ["rela berkorban", "korban"] },
+                        { text: "Pantang Menyerah", points: 60, keywords: ["pantang menyerah", "gigih", "ulet"] },
+                        { text: "Jujur", points: 40, keywords: ["jujur"] },
+                        { text: "Cinta Tanah Air / Patriotisme", points: 20, keywords: ["cinta tanah air", "patriot", "nasionalisme"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan contoh kegiatan Gotong Royong di masyarakat/sekolah!",
+                    answers: [
+                        { text: "Kerja Bakti Bersih Desa", points: 100, keywords: ["kerja bakti", "bersih-bersih"] },
+                        { text: "Piket Kelas Bersama", points: 80, keywords: ["piket", "kelas"] },
+                        { text: "Membangun Jembatan/Jalan", points: 60, keywords: ["jembatan", "jalan", "fasilitas"] },
+                        { text: "Menolong Tetangga Musibah", points: 40, keywords: ["tolong", "bantu", "bencana"] },
+                        { text: "Siskamling / Ronda Malam", points: 20, keywords: ["ronda", "siskamling", "jaga malam"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan hari besar nasional atau keagamaan yang menjadi hari libur!",
+                    answers: [
+                        { text: "Hari Kemerdekaan (17 Agustus)", points: 100, keywords: ["merdeka", "17 agustus", "kemerdekaan"] },
+                        { text: "Idul Fitri / Lebaran", points: 80, keywords: ["idul fitri", "lebaran", "idul adha"] },
+                        { text: "Hari Raya Natal", points: 60, keywords: ["natal"] },
+                        { text: "Hari Raya Nyepi", points: 40, keywords: ["nyepi"] },
+                        { text: "Hari Raya Waisak / Imlek", points: 20, keywords: ["waisak", "imlek", "tahun baru"] }
+                    ]
+                }
+            ],
+            'inggris': [
+                {
+                    question: "Sebutkan warna-warna dalam Bahasa Inggris (Colors)!",
+                    answers: [
+                        { text: "Red (Merah)", points: 100, keywords: ["red"] },
+                        { text: "Blue (Biru)", points: 80, keywords: ["blue"] },
+                        { text: "Green (Hijau)", points: 60, keywords: ["green"] },
+                        { text: "Yellow (Kuning)", points: 40, keywords: ["yellow"] },
+                        { text: "Black / White", points: 20, keywords: ["black", "white", "pink", "purple"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan nama hewan peliharaan/liar dalam Bahasa Inggris (Animals)!",
+                    answers: [
+                        { text: "Cat (Kucing)", points: 100, keywords: ["cat"] },
+                        { text: "Dog (Anjing)", points: 80, keywords: ["dog"] },
+                        { text: "Bird (Burung)", points: 60, keywords: ["bird"] },
+                        { text: "Fish (Ikan)", points: 40, keywords: ["fish"] },
+                        { text: "Elephant / Lion", points: 20, keywords: ["elephant", "lion", "tiger", "monkey", "rabbit"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan angka 1 sampai 10 dalam Bahasa Inggris (Numbers)!",
+                    answers: [
+                        { text: "One (Satu)", points: 100, keywords: ["one"] },
+                        { text: "Two (Dua)", points: 80, keywords: ["two"] },
+                        { text: "Three (Tiga)", points: 60, keywords: ["three"] },
+                        { text: "Four (Empat)", points: 40, keywords: ["four"] },
+                        { text: "Five / Ten (Lima/Sepuluh)", points: 20, keywords: ["five", "six", "seven", "eight", "nine", "ten"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan nama-nama hari dalam Bahasa Inggris (Days of the Week)!",
+                    answers: [
+                        { text: "Monday (Senin)", points: 100, keywords: ["monday"] },
+                        { text: "Sunday (Minggu)", points: 80, keywords: ["sunday"] },
+                        { text: "Friday (Jumat)", points: 60, keywords: ["friday"] },
+                        { text: "Saturday (Sabtu)", points: 40, keywords: ["saturday"] },
+                        { text: "Tuesday / Wednesday / Thursday", points: 20, keywords: ["tuesday", "wednesday", "thursday"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan anggota keluarga dalam Bahasa Inggris (Family)!",
+                    answers: [
+                        { text: "Mother / Mom (Ibu)", points: 100, keywords: ["mother", "mom"] },
+                        { text: "Father / Dad (Ayah)", points: 80, keywords: ["father", "dad"] },
+                        { text: "Brother (Saudara Laki-laki)", points: 60, keywords: ["brother"] },
+                        { text: "Sister (Saudara Perempuan)", points: 40, keywords: ["sister"] },
+                        { text: "Grandfather / Grandmother", points: 20, keywords: ["grandfather", "grandmother", "grandpa", "grandma"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan nama buah-buahan dalam Bahasa Inggris (Fruits)!",
+                    answers: [
+                        { text: "Apple (Apel)", points: 100, keywords: ["apple"] },
+                        { text: "Banana (Pisang)", points: 80, keywords: ["banana"] },
+                        { text: "Orange (Jeruk)", points: 60, keywords: ["orange"] },
+                        { text: "Mango (Mangga)", points: 40, keywords: ["mango"] },
+                        { text: "Watermelon / Grapes", points: 20, keywords: ["watermelon", "grape", "grapes", "melon"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan bagian tubuh dalam Bahasa Inggris (Parts of Body)!",
+                    answers: [
+                        { text: "Head (Kepala)", points: 100, keywords: ["head"] },
+                        { text: "Eyes (Mata)", points: 80, keywords: ["eye", "eyes"] },
+                        { text: "Nose (Hidung)", points: 60, keywords: ["nose"] },
+                        { text: "Mouth (Mulut)", points: 40, keywords: ["mouth"] },
+                        { text: "Hand / Foot", points: 20, keywords: ["hand", "hands", "foot", "feet", "ear", "hair"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan benda yang ada di kelas dalam Bahasa Inggris (Things in Classroom)!",
+                    answers: [
+                        { text: "Book (Buku)", points: 100, keywords: ["book"] },
+                        { text: "Pen / Pencil (Pulpen/Pensil)", points: 80, keywords: ["pen", "pencil"] },
+                        { text: "Eraser (Penghapus)", points: 60, keywords: ["eraser", "rubber"] },
+                        { text: "Table / Desk (Meja)", points: 40, keywords: ["table", "desk"] },
+                        { text: "Chair (Kursi)", points: 20, keywords: ["chair", "ruler", "bag"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan sapaan / kalimat salam dalam Bahasa Inggris (Greetings)!",
+                    answers: [
+                        { text: "Hello / Hi", points: 100, keywords: ["hello", "hi"] },
+                        { text: "Good Morning (Selamat Pagi)", points: 80, keywords: ["good morning", "morning"] },
+                        { text: "Goodbye / Bye (Selamat Tinggal)", points: 60, keywords: ["goodbye", "bye"] },
+                        { text: "Good Night (Selamat Malam)", points: 40, keywords: ["good night", "night"] },
+                        { text: "How are you? (Apa Kabar?)", points: 20, keywords: ["how are you", "good afternoon", "good evening"] }
+                    ]
+                },
+                {
+                    question: "Sebutkan jenis kendaraan dalam Bahasa Inggris (Transportation)!",
+                    answers: [
+                        { text: "Car (Mobil)", points: 100, keywords: ["car"] },
+                        { text: "Bus (Bis)", points: 80, keywords: ["bus"] },
+                        { text: "Train (Kereta)", points: 60, keywords: ["train"] },
+                        { text: "Bicycle / Bike (Sepeda)", points: 40, keywords: ["bicycle", "bike"] },
+                        { text: "Plane / Ship (Pesawat/Kapal)", points: 20, keywords: ["plane", "airplane", "ship", "boat", "motorcycle"] }
+                    ]
+                }
+            ]
+        };
+
+        /* --- GAME STATE --- */
+        let currentSubject = null;
+        let questionsData = [];
+        let currentQuestionIndex = 0;
+        let team1Score = 0;
+        let team2Score = 0;
+        let activeTeam = 1; // 1 or 2
+        let team1Strikes = 0;
+        let team2Strikes = 0;
+        let currentRevealed = [false, false, false, false, false];
+        let turnPopupTimeout = null;
+        /* --- DOM ELEMENTS --- */
+        const elQuestionText = document.getElementById('question-text');
+        const elQuestionIndicator = document.getElementById('question-indicator');
+        const elAnswersContainer = document.getElementById('answers-container');
+        const elInput = document.getElementById('answer-input');
+        
+        const elT1Score = document.getElementById('team1-score');
+        const elT2Score = document.getElementById('team2-score');
+        const elT1Panel = document.getElementById('team1-panel');
+        const elT2Panel = document.getElementById('team2-panel');
+
+        /* --- BACKGROUND MUSIC LOGIC --- */
+        let isBgmPlaying = false;
+        const bgmAudio = document.getElementById('bgm-audio');
+        bgmAudio.volume = 0.60; // Volume dinaikkan menjadi 60% agar lebih terdengar
+
+        function toggleBGM() {
+            const btnBgm = document.getElementById('btn-bgm');
+            if (isBgmPlaying) {
+                bgmAudio.pause();
+                isBgmPlaying = false;
+                btnBgm.innerText = "🎵 Musik: OFF";
+                btnBgm.classList.replace('bg-teal-500', 'bg-teal-700');
+            } else {
+                bgmAudio.play().catch(e => {
+                    alert("Musik tidak ditemukan! Pastikan file bgm.mp3 berada di folder yang sama dengan file HTML.");
+                    console.log("BGM Play failed:", e);
+                });
+                isBgmPlaying = true;
+                btnBgm.innerText = "🎵 Musik: ON";
+                btnBgm.classList.replace('bg-teal-700', 'bg-teal-500');
+            }
+        }
+
+        /* --- AUDIO SYNTHESIS (Web Audio API) --- */
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTone(freq, type, duration, vol = 0.1) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playCorrectSound() {
+            playTone(523.25, 'sine', 0.1, 0.2); // C5
+            setTimeout(() => playTone(659.25, 'sine', 0.1, 0.2), 100); // E5
+            setTimeout(() => playTone(783.99, 'sine', 0.3, 0.2), 200); // G5
+        }
+
+        function playWrongSound() {
+            playTone(150, 'sawtooth', 0.4, 0.3);
+            setTimeout(() => playTone(140, 'sawtooth', 0.4, 0.3), 100);
+        }
+
+        function playWinSound() {
+            const notes = [
+                {f: 440, d: 0.2}, {f: 440, d: 0.2}, {f: 440, d: 0.2},
+                {f: 587.33, d: 0.4}, {f: 523.25, d: 0.4}, {f: 659.25, d: 0.8}
+            ];
+            let time = 0;
+            notes.forEach(note => {
+                setTimeout(() => playTone(note.f, 'square', note.d, 0.15), time * 1000);
+                time += note.d;
+            });
+        }
+
+        /* --- GRADE SELECTION & INITIALIZATION --- */
+        function showGradeSelection() {
+            document.getElementById('grade-modal').classList.remove('hidden');
+            document.getElementById('main-game-area').classList.add('hidden');
+            document.getElementById('win-modal').classList.add('hidden');
+            stopConfetti();
+        }
+
+        function selectSubject(subjectKey) {
+            currentSubject = subjectKey;
+            
+            // Fisher-Yates Shuffle untuk mengacak 10 soal
+            let allQuestions = [...questionsBank[subjectKey]];
+            for (let i = allQuestions.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [allQuestions[i], allQuestions[j]] = [allQuestions[j], allQuestions[i]];
+            }
+            
+            // Ambil 5 soal pertama yang sudah diacak
+            questionsData = allQuestions.slice(0, 5);
+            
+            // Mapping nama mapel untuk UI
+            const subjectNames = {
+                'ipas': 'ILMU PENGETAHUAN ALAM & SOSIAL (IPAS)',
+                'indonesia': 'BAHASA INDONESIA',
+                'matematika': 'MATEMATIKA',
+                'pkn': 'PENDIDIKAN PANCASILA (PKN)',
+                'inggris': 'BAHASA INGGRIS'
+            };
+            
+            // Update UI Title
+            document.getElementById('grade-subtitle').innerText = `MATA PELAJARAN: ${subjectNames[subjectKey]}`;
+            
+            // Hide Modal, Show Game
+            document.getElementById('grade-modal').classList.add('hidden');
+            document.getElementById('main-game-area').classList.remove('hidden');
+            
+            initGame();
+        }
+
+        /* --- INITIALIZATION & RENDERING --- */
+        function initGame() {
+            currentQuestionIndex = 0;
+            team1Score = 0;
+            team2Score = 0;
+            activeTeam = 1;
+            updateScores();
+            updateTeamUI();
+            loadQuestion(0);
+            showTurnPopup(); // Tampilkan popup giliran saat mulai
+            
+            // Allow Enter key to trigger check
+            elInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') checkAnswer();
+            });
+
+            // Start Audio Context on first interaction
+            document.body.addEventListener('click', () => {
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+            }, { once: true });
+        }
+
+        function loadQuestion(index) {
+            const q = questionsData[index];
+            currentRevealed = [false, false, false, false, false];
+            resetStrikes();
+            
+            elQuestionIndicator.innerText = `SOAL ${index + 1} DARI ${questionsData.length}`;
+            elQuestionText.innerText = q.question;
+            elInput.value = "";
+            elInput.focus();
+
+            // Check if it's the last question
+            if (index === questionsData.length - 1) {
+                document.getElementById('btn-next').innerText = "SELESAI & HASIL 🏆";
+                document.getElementById('btn-next').classList.replace('bg-purple-600', 'bg-green-600');
+                document.getElementById('btn-next').classList.replace('border-purple-800', 'border-green-800');
+            }
+
+            // Generate Cards
+            elAnswersContainer.innerHTML = '';
+            q.answers.forEach((ans, i) => {
+                const cardHTML = `
+                    <div class="h-16 w-full perspective cursor-default">
+                        <div id="card-${i}" class="w-full h-full relative preserve-3d">
+                            <!-- Front of Card (Closed) -->
+                            <div class="absolute w-full h-full backface-hidden bg-gradient-to-r from-blue-800 to-blue-900 rounded-xl border-2 border-blue-500/50 flex items-center shadow-md">
+                                <div class="w-16 h-full border-r-2 border-blue-500/50 flex items-center justify-center text-3xl font-black text-blue-200 bg-black/20 rounded-l-lg">
+                                    ${i + 1}
+                                </div>
+                                <div class="flex-1"></div>
+                                <div class="w-20 h-full border-l-2 border-blue-500/50 flex items-center justify-center text-2xl font-bold text-yellow-400 bg-black/20 rounded-r-lg">
+                                    ${ans.points}
+                                </div>
+                            </div>
+                            <!-- Back of Card (Revealed) -->
+                            <div class="absolute w-full h-full backface-hidden rotate-x-180 bg-gradient-to-r from-yellow-400 to-yellow-500 rounded-xl border-2 border-yellow-200 flex items-center shadow-[0_0_15px_rgba(250,204,21,0.5)]">
+                                <div class="flex-1 px-6 text-xl font-bold text-yellow-950 uppercase drop-shadow-sm line-clamp-1">
+                                    ${ans.text}
+                                </div>
+                                <div class="w-20 h-full border-l-2 border-yellow-600/30 flex items-center justify-center text-3xl font-black text-yellow-950 bg-black/10 rounded-r-lg">
+                                    ${ans.points}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                elAnswersContainer.insertAdjacentHTML('beforeend', cardHTML);
+            });
+        }
+
+        /* --- GAME LOGIC --- */
+        function updateTeamUI() {
+            if (activeTeam === 1) {
+                elT1Panel.classList.add('team-active');
+                elT1Panel.classList.remove('team-inactive');
+                elT2Panel.classList.add('team-inactive');
+                elT2Panel.classList.remove('team-active');
+            } else {
+                elT2Panel.classList.add('team-active');
+                elT2Panel.classList.remove('team-inactive');
+                elT1Panel.classList.add('team-inactive');
+                elT1Panel.classList.remove('team-active');
+            }
+        }
+
+        function switchTeam() {
+            activeTeam = activeTeam === 1 ? 2 : 1;
+            updateTeamUI();
+            showTurnPopup();
+            elInput.focus();
+        }
+
+        function showTurnPopup() {
+            const popup = document.getElementById('turn-popup');
+            const content = document.getElementById('turn-popup-content');
+            
+            // Hapus timeout sebelumnya jika ada agar tidak tumpang tindih
+            if(turnPopupTimeout) clearTimeout(turnPopupTimeout);
+            
+            if (activeTeam === 1) {
+                content.innerText = "GILIRAN TIM 1";
+                content.className = "text-6xl md:text-8xl font-black text-blue-50 px-12 py-8 rounded-3xl border-8 border-blue-400 bg-blue-600/95 shadow-[0_0_80px_rgba(96,165,250,0.9)] transform scale-0 transition-transform duration-300 backdrop-blur-md text-center drop-shadow-xl";
+            } else {
+                content.innerText = "GILIRAN TIM 2";
+                content.className = "text-6xl md:text-8xl font-black text-rose-50 px-12 py-8 rounded-3xl border-8 border-rose-400 bg-rose-600/95 shadow-[0_0_80px_rgba(251,113,133,0.9)] transform scale-0 transition-transform duration-300 backdrop-blur-md text-center drop-shadow-xl";
+            }
+
+            popup.classList.remove('hidden');
+            
+            // Trigger animasi masuk
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    content.classList.remove('scale-0');
+                    content.classList.add('scale-100');
+                });
+            });
+
+            // Sembunyikan otomatis setelah 2 detik
+            turnPopupTimeout = setTimeout(() => {
+                content.classList.remove('scale-100');
+                content.classList.add('scale-0');
+                setTimeout(() => {
+                    popup.classList.add('hidden');
+                }, 300); // Menunggu transisi selesai
+            }, 2000);
+        }
+
+        function updateScores() {
+            elT1Score.innerText = team1Score;
+            elT2Score.innerText = team2Score;
+        }
+
+        // Add Points with Animation
+        function addPoints(points) {
+            const anchorId = activeTeam === 1 ? 't1-point-anchor' : 't2-point-anchor';
+            const anchor = document.getElementById(anchorId);
+            
+            // Update Data
+            if (activeTeam === 1) team1Score += points;
+            else team2Score += points;
+            
+            updateScores();
+
+            // Float Animation
+            const floatEl = document.createElement('div');
+            floatEl.className = 'point-float';
+            floatEl.innerText = `+${points}`;
+            anchor.appendChild(floatEl);
+            
+            setTimeout(() => {
+                if(anchor.contains(floatEl)) anchor.removeChild(floatEl);
+            }, 1000);
+        }
+
+        function checkAnswer() {
+            const inputVal = elInput.value.trim().toLowerCase();
+            if (!inputVal) return;
+
+            const q = questionsData[currentQuestionIndex];
+            let foundIndex = -1;
+
+            // Fuzzy Match
+            for (let i = 0; i < q.answers.length; i++) {
+                if (currentRevealed[i]) continue; // Skip already revealed
+                
+                const keywords = q.answers[i].keywords;
+                // Check if any keyword is included in the input
+                if (keywords.some(kw => inputVal.includes(kw.toLowerCase()))) {
+                    foundIndex = i;
+                    break;
+                }
+            }
+
+            if (foundIndex !== -1) {
+                // Correct
+                revealAnswer(foundIndex, true);
+                elInput.value = "";
+            } else {
+                // Wrong - show modal but don't clear input immediately in case of typo
+                markWrong();
+            }
+            elInput.focus();
+        }
+
+        function revealAnswer(index, withPoints) {
+            if (currentRevealed[index]) return; // Prevent double trigger
+            
+            currentRevealed[index] = true;
+            const card = document.getElementById(`card-${index}`);
+            
+            // Flip Animation
+            card.classList.add('rotate-x-180');
+            
+            if (withPoints) {
+                playCorrectSound();
+                addPoints(questionsData[currentQuestionIndex].answers[index].points);
+            }
+        }
+
+        // Manual Reveal from Buttons (Gives Points)
+        function manualReveal(index) {
+            if(index >= 0 && index < 5 && !currentRevealed[index]){
+                revealAnswer(index, true);
+            }
+        }
+
+        // Reveal remaining answers without points
+        function revealAllNoPoints() {
+            for (let i = 0; i < 5; i++) {
+                if (!currentRevealed[i]) {
+                    revealAnswer(i, false);
+                }
+            }
+        }
+
+        function markWrong() {
+            playWrongSound();
+            
+            // Show Big X Overlay
+            const overlay = document.getElementById('big-x-overlay');
+            overlay.style.display = 'block';
+            overlay.classList.add('animate-pop-in');
+            
+            setTimeout(() => {
+                overlay.style.display = 'none';
+                overlay.classList.remove('animate-pop-in');
+            }, 1000);
+
+            // Add Strike
+            if (activeTeam === 1) {
+                if (team1Strikes < 3) {
+                    team1Strikes++;
+                    document.getElementById(`t1-strike-${team1Strikes}`).classList.add('active');
+                }
+                if (team1Strikes >= 3) flashTeamWarning(elT1Panel);
+            } else {
+                if (team2Strikes < 3) {
+                    team2Strikes++;
+                    document.getElementById(`t2-strike-${team2Strikes}`).classList.add('active');
+                }
+                if (team2Strikes >= 3) flashTeamWarning(elT2Panel);
+            }
+            elInput.value = "";
+            elInput.focus();
+
+            // Auto-switch team when the answer is wrong (after 1 second delay to let animation finish)
+            setTimeout(() => {
+                switchTeam();
+            }, 1000);
+        }
+
+        function flashTeamWarning(panel) {
+            panel.style.borderColor = '#ef4444'; // Red
+            panel.style.boxShadow = '0 0 30px rgba(239, 68, 68, 0.8)';
+            setTimeout(() => {
+                panel.style.borderColor = '';
+                panel.style.boxShadow = '';
+                updateTeamUI(); // restore normal active state glow
+            }, 1500);
+        }
+
+        function resetStrikes() {
+            team1Strikes = 0;
+            team2Strikes = 0;
+            for(let i=1; i<=3; i++){
+                document.getElementById(`t1-strike-${i}`).classList.remove('active');
+                document.getElementById(`t2-strike-${i}`).classList.remove('active');
+            }
+            updateTeamUI();
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < questionsData.length - 1) {
+                currentQuestionIndex++;
+                loadQuestion(currentQuestionIndex);
+            } else {
+                showWinModal();
+            }
+        }
+
+        /* --- END GAME & CONFETTI --- */
+        function showWinModal() {
+            const modal = document.getElementById('win-modal');
+            const content = document.getElementById('win-modal-content');
+            
+            document.getElementById('final-score-1').innerText = team1Score;
+            document.getElementById('final-score-2').innerText = team2Score;
+            
+            const ann = document.getElementById('winner-announcement');
+            if (team1Score > team2Score) {
+                ann.innerText = "TIM 1 MENANG!";
+                ann.className = "text-5xl font-black text-blue-400 mb-10 animate-bounce text-center drop-shadow-[0_0_20px_rgba(96,165,250,0.8)]";
+            } else if (team2Score > team1Score) {
+                ann.innerText = "TIM 2 MENANG!";
+                ann.className = "text-5xl font-black text-rose-400 mb-10 animate-bounce text-center drop-shadow-[0_0_20px_rgba(251,113,133,0.8)]";
+            } else {
+                ann.innerText = "HASIL SERI!";
+                ann.className = "text-5xl font-black text-white mb-10 animate-bounce text-center drop-shadow-[0_0_20px_rgba(255,255,255,0.8)]";
+            }
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                content.classList.remove('scale-0');
+                content.classList.add('scale-100');
+            }, 50);
+
+            playWinSound();
+            startConfetti();
+        }
+
+        function resetGameModal() {
+            if(confirm("Apakah Anda yakin ingin mereset permainan dari awal?")) {
+                resetGame();
+            }
+        }
+
+        function resetGame() {
+            const modal = document.getElementById('win-modal');
+            const content = document.getElementById('win-modal-content');
+            
+            content.classList.remove('scale-100');
+            content.classList.add('scale-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                stopConfetti();
+                
+                // Reset Next Button Style
+                const btnNext = document.getElementById('btn-next');
+                btnNext.innerText = "SOAL BERIKUTNYA ⏭";
+                btnNext.className = "bg-purple-600 hover:bg-purple-500 text-white font-bold px-6 py-2 rounded-xl shadow-lg border-b-4 border-purple-800 animate-pulse";
+                
+                initGame();
+            }, 500);
+        }
+
+        /* --- CONFETTI LOGIC --- */
+        let confettiInterval;
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        let particles = [];
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        function createParticles() {
+            for (let i = 0; i < 100; i++) {
+                particles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    r: Math.random() * 6 + 2,
+                    dx: Math.random() * 4 - 2,
+                    dy: Math.random() * 5 + 2,
+                    color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                    tilt: Math.floor(Math.random() * 10) - 10,
+                    tiltAngleInc: (Math.random() * 0.07) + 0.05,
+                    tiltAngle: 0
+                });
+            }
+        }
+
+        function drawConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particles.forEach((p, index) => {
+                p.tiltAngle += p.tiltAngleInc;
+                p.y += (Math.cos(p.tiltAngle) + 1 + p.r / 2) / 2;
+                p.x += Math.sin(p.tiltAngle) * 2;
+                
+                if (p.y > canvas.height) {
+                    particles[index] = { ...p, x: Math.random() * canvas.width, y: -20, tilt: Math.floor(Math.random() * 10) - 10 };
+                }
+
+                ctx.beginPath();
+                ctx.lineWidth = p.r;
+                ctx.strokeStyle = p.color;
+                ctx.moveTo(p.x + p.tilt + p.r, p.y);
+                ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r);
+                ctx.stroke();
+            });
+        }
+
+        function startConfetti() {
+            particles = [];
+            createParticles();
+            if(confettiInterval) clearInterval(confettiInterval);
+            confettiInterval = setInterval(drawConfetti, 20);
+        }
+
+        function stopConfetti() {
+            clearInterval(confettiInterval);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        /* --- FULLSCREEN LOGIC --- */
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            const expandIcon = document.getElementById('fs-icon-expand');
+            const compressIcon = document.getElementById('fs-icon-compress');
+            if (document.fullscreenElement) {
+                expandIcon.classList.add('hidden');
+                compressIcon.classList.remove('hidden');
+            } else {
+                expandIcon.classList.remove('hidden');
+                compressIcon.classList.add('hidden');
+            }
+        });
+
+        // Start App by showing Subject Selection
+        window.onload = showGradeSelection;
+
+    </script>
+</body>
+</html>
